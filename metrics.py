@@ -3,37 +3,8 @@ import numpy as np
 from models import EnhancedPoint, ThermalMetrics
 
 
-def compute_thermal_metrics(ep: EnhancedPoint) -> ThermalMetrics:
-    w = ep.weather
-    if w is None:
-        return ThermalMetrics()
-
-    T = w.temperature_2m
-    HR = w.relative_humidity_2m
-    WS = w.wind_speed_10m
-
-    apparent = w.apparent_temperature if w.apparent_temperature is not None else _apparent_temperature(T, HR, WS)
-    hi = _heat_index(T, HR)
-    wc = _wind_chill(T, WS)
-    hx = _humidex(T, HR)
-    wbgt_val = _wbgt_simple(T, HR)
-
-    return ThermalMetrics(
-        apparent_temperature=apparent,
-        heat_index=hi,
-        wind_chill=wc,
-        humidex=hx,
-        wbgt=wbgt_val,
-    )
-
-
-_vp = lambda T, HR: (HR / 100.0) * 6.105 * np.exp(17.27 * T / (237.7 + T))
-
-
-def _apparent_temperature(T: float, HR: float, WS: float) -> float:
-    e = _vp(T, HR)
-    Ta = T + 0.33 * e - 0.70 * WS - 4.00
-    return round(Ta, 1)
+def _vp(T: float, HR: float) -> float:
+    return (HR / 100.0) * 6.105 * np.exp(17.27 * T / (237.7 + T))
 
 
 def _heat_index(T: float, HR: float) -> float | None:
@@ -72,9 +43,82 @@ def _wbgt_simple(T: float, HR: float) -> float:
     return round(wbgt, 1)
 
 
+def _apparent_temperature(T: float, HR: float, WS: float) -> float:
+    e = _vp(T, HR)
+    Ta = T + 0.33 * e - 0.70 * WS - 4.00
+    return round(Ta, 1)
+
+
+def _wind_shelter_factor(elevation: float | None, local_terrain_range: float | None = None) -> float:
+    base = (1.5 / 10.0) ** 0.14
+    if elevation is not None and elevation > 300:
+        base *= max(0.45, 1.0 - 0.00012 * (elevation - 300))
+    if local_terrain_range is not None and local_terrain_range > 100:
+        base *= max(0.3, 1.0 - 0.0008 * (local_terrain_range - 100))
+    return base
+
+
+def _felt_temperature(T: float, HR: float, WS: float, SR: float | None,
+                      elevation: float | None = None, terrain_range: float | None = None) -> float:
+    e = _vp(T, HR)
+    shelter = _wind_shelter_factor(elevation, terrain_range)
+    ws_body = WS * shelter
+    rad = SR if SR is not None else 0.0
+
+    solar_factor = 0.012
+    if elevation is not None and elevation > 300:
+        solar_factor = min(0.022, 0.012 + 0.0025 * ((elevation - 300) / 1000))
+
+    ft = T + 0.33 * e - 0.70 * ws_body + solar_factor * rad - 4.00
+    return round(ft, 1)
+
+
+def compute_thermal_metrics(ep: EnhancedPoint, terrain_range: float | None = None) -> ThermalMetrics:
+    w = ep.weather
+    if w is None:
+        return ThermalMetrics()
+
+    T = w.temperature_2m
+    HR = w.relative_humidity_2m
+    WS = w.wind_speed_10m
+    SR = w.shortwave_radiation
+    elev = ep.track.elevation
+
+    apparent = w.apparent_temperature if w.apparent_temperature is not None else _apparent_temperature(T, HR, WS)
+    felt = _felt_temperature(T, HR, WS, SR, elev, terrain_range)
+    hi = _heat_index(T, HR)
+    wc = _wind_chill(T, WS)
+    hx = _humidex(T, HR)
+    wbgt_val = _wbgt_simple(T, HR)
+
+    return ThermalMetrics(
+        apparent_temperature=apparent,
+        felt_temperature=felt,
+        heat_index=hi,
+        wind_chill=wc,
+        humidex=hx,
+        wbgt=wbgt_val,
+    )
+
+
+def _terrain_ranges(points: list[EnhancedPoint], window: int = 60) -> list[float | None]:
+    eles = [ep.track.elevation for ep in points]
+    ranges = []
+    for i in range(len(points)):
+        start = max(0, i - window)
+        end = min(len(points), i + window + 1)
+        window_eles = [e for e in eles[start:end] if e is not None]
+        if len(window_eles) >= 3:
+            ranges.append(max(window_eles) - min(window_eles))
+        else:
+            ranges.append(None)
+    return ranges
+
+
 def compute_all_metrics(points: list[EnhancedPoint]) -> list[EnhancedPoint]:
-    for ep in points:
-        ep.thermal = compute_thermal_metrics(ep)
+    terrain_ranges = _terrain_ranges(points)
+    for ep, tr in zip(points, terrain_ranges):
+        ep.thermal = compute_thermal_metrics(ep, tr)
     return points
 
 

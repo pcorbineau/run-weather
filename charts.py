@@ -18,6 +18,7 @@ def generate_charts(activity: Activity, output_dir: Path) -> list[Path]:
     times = [_to_local(ep.track.time, local_tz) for ep in points]
     temps = [ep.weather.temperature_2m if ep.weather else None for ep in points]
     apparents = [ep.thermal.apparent_temperature if ep.thermal else None for ep in points]
+    felts = [ep.thermal.felt_temperature if ep.thermal else None for ep in points]
     hums = [ep.weather.relative_humidity_2m if ep.weather else None for ep in points]
     hrs = [ep.track.heart_rate for ep in points]
     paces = [ep.pace_min_km for ep in points]
@@ -26,6 +27,7 @@ def generate_charts(activity: Activity, output_dir: Path) -> list[Path]:
     charts = [
         ("temperature_vs_time", "Temperature (°C)", temps),
         ("apparent_temp_vs_time", "Temperature ressentie (°C)", apparents),
+        ("felt_temp_vs_time", "Temperature ressentie soleil (°C)", felts),
         ("humidity_vs_time", "Humidite (%)", hums),
         ("heart_rate_vs_time", "Frequence cardiaque (bpm)", hrs),
         ("pace_vs_time", "Allure (min/km)", paces),

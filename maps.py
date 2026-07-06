@@ -18,6 +18,10 @@ VARIABLES = {
         "label": "Temperature ressentie (°C)",
         "getter": lambda ep: ep.thermal.apparent_temperature if ep.thermal else None,
     },
+    "felt_temperature": {
+        "label": "T° ressentie soleil (°C)",
+        "getter": lambda ep: ep.thermal.felt_temperature if ep.thermal else None,
+    },
     "heat_index": {
         "label": "Heat Index (°C)",
         "getter": lambda ep: ep.thermal.heat_index if ep.thermal else None,

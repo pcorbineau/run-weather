@@ -39,12 +39,12 @@ th { background: #f0f4f8; }
 
 <div class="summary">
 <div class="summary-item"><div class="value">{{ "%.1f"|format(distance_km) }}</div><div class="label">Distance (km)</div></div>
-<div class="summary-item"><div class="value">{{ duration_str }}</div><div class="label">Durée</div></div>
+<div class="summary-item"><div class="value">{{ duration_str }}</div><div class="label">Duree</div></div>
 <div class="summary-item"><div class="value">{{ "%.0f"|format(elevation_gain) }}</div><div class="label">D+ (m)</div></div>
 <div class="summary-item"><div class="value">{{ "%.0f"|format(elevation_loss) }}</div><div class="label">D- (m)</div></div>
 </div>
 
-<h2>Statistiques météo</h2>
+<h2>Statistiques meteos</h2>
 <table>
 <tr><th>Variable</th><th>Min</th><th>Moy</th><th>Max</th></tr>
 {% for var, vals in weather_stats.items() %}
@@ -52,15 +52,15 @@ th { background: #f0f4f8; }
 {% endfor %}
 </table>
 
-<h2>Zones thermiques (température ressentie)</h2>
+<h2>Zones thermiques (temperature ressentie)</h2>
 <table>
-<tr><th>Seuil</th><th>Temps passé</th></tr>
+<tr><th>Seuil</th><th>Temps passe</th></tr>
 {% for zone, seconds in thermal_zones.items() %}
 <tr><td>&gt; {{ zone }}°C</td><td>{{ "%d min"|format(seconds // 60) }}</td></tr>
 {% endfor %}
 </table>
 
-<h2>Corrélations</h2>
+<h2>Correlations</h2>
 <table>
 <tr><th>Relation</th><th>Coefficient (Pearson)</th></tr>
 {% for label, val in correlations.items() %}
@@ -79,7 +79,7 @@ th { background: #f0f4f8; }
 <div class="map-container">{{ map_html | safe }}</div>
 
 <p style="text-align:center;color:#999;font-size:0.85em;margin-top:40px;">
-Généré par run-weather le {{ generation_time }}
+Genere par run-weather le {{ generation_time }}
 </p>
 </body>
 </html>"""
@@ -102,6 +102,7 @@ def generate_csv(activity: Activity, path: Path) -> Path:
             "humidite": w.relative_humidity_2m if w else "",
             "vent": w.wind_speed_10m if w else "",
             "temperature_ressentie": th.apparent_temperature if th else "",
+            "temperature_ressentie_soleil": th.felt_temperature if th else "",
             "heat_index": th.heat_index if th else "",
             "wbgt": th.wbgt if th else "",
             "fc": t.heart_rate or "",
@@ -159,18 +160,21 @@ def generate_html_report(activity: Activity, charts: list[Path], map_path: Path,
 
 def _weather_stats(activity: Activity) -> dict:
     stats = {
-        "Température (°C)": [],
-        "Humidité (%)": [],
+        "Temperature (°C)": [],
+        "Humidite (%)": [],
         "Vent (km/h)": [],
-        "Température apparente (°C)": [],
+        "Temperature apparente (°C)": [],
+        "T° ressentie soleil (°C)": [],
     }
     for ep in activity.points:
         if ep.weather:
-            stats["Température (°C)"].append(ep.weather.temperature_2m)
-            stats["Humidité (%)"].append(ep.weather.relative_humidity_2m)
+            stats["Temperature (°C)"].append(ep.weather.temperature_2m)
+            stats["Humidite (%)"].append(ep.weather.relative_humidity_2m)
             stats["Vent (km/h)"].append(ep.weather.wind_speed_10m)
         if ep.thermal and ep.thermal.apparent_temperature is not None:
-            stats["Température apparente (°C)"].append(ep.thermal.apparent_temperature)
+            stats["Temperature apparente (°C)"].append(ep.thermal.apparent_temperature)
+        if ep.thermal and ep.thermal.felt_temperature is not None:
+            stats["T° ressentie soleil (°C)"].append(ep.thermal.felt_temperature)
 
     result = {}
     for label, vals in stats.items():

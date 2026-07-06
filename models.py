@@ -32,6 +32,7 @@ class HourlyWeather:
 @dataclass
 class ThermalMetrics:
     apparent_temperature: float | None = None
+    felt_temperature: float | None = None
     heat_index: float | None = None
     wind_chill: float | None = None
     humidex: float | None = None
