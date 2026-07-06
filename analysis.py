@@ -57,8 +57,10 @@ def correlation_hr_apparent_temp(activity: Activity) -> dict:
 
 
 def thermal_zones(activity: Activity) -> dict:
+    points = activity.points
     thresholds = {"25": 0.0, "30": 0.0, "35": 0.0}
-    for ep in activity.points:
+
+    for i, ep in enumerate(points):
         at = None
         if ep.thermal and ep.thermal.apparent_temperature is not None:
             at = ep.thermal.apparent_temperature
@@ -67,15 +69,15 @@ def thermal_zones(activity: Activity) -> dict:
         else:
             continue
 
-        duration = 0.0
-        if hasattr(ep, "_duration") and ep._duration:
-            duration = ep._duration
-        else:
-            duration = 1.0
+        duration = 1.0
+        if i > 0 and points[i - 1].track.time and ep.track.time:
+            dt = (ep.track.time - points[i - 1].track.time).total_seconds()
+            if dt > 0:
+                duration = dt
 
         for threshold_str in thresholds:
             threshold = float(threshold_str)
             if at > threshold:
                 thresholds[threshold_str] += duration
 
-    return {f"above_{t}c": round(v, 0) for t, v in thresholds.items()}
+    return {f"{t}": round(v, 0) for t, v in thresholds.items()}

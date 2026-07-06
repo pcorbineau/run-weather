@@ -1,9 +1,10 @@
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.dates import DateFormatter
+from matplotlib.dates import DateFormatter, AutoDateLocator
 
 from config import LOCAL_TIMEZONE
 from models import Activity
@@ -41,8 +42,7 @@ def generate_charts(activity: Activity, output_dir: Path) -> list[Path]:
         fig, ax = plt.subplots(figsize=(12, 4))
         ax.plot(xt, yv, linewidth=0.8)
         ax.set_ylabel(ylabel)
-        ax.xaxis.set_major_formatter(DateFormatter("%H:%M"))
-        fig.autofmt_xdate()
+        _fmt_xaxis(ax, xt)
         path = output_dir / f"{name}.png"
         fig.savefig(path, dpi=150, bbox_inches="tight")
         files.append(path)
@@ -59,7 +59,17 @@ def generate_charts(activity: Activity, output_dir: Path) -> list[Path]:
 def _to_local(dt, tz):
     if dt is None:
         return None
-    return dt.astimezone(tz)
+    return dt.astimezone(tz).replace(tzinfo=None)
+
+
+def _fmt_xaxis(ax, xt):
+    if not xt:
+        return
+    locator = AutoDateLocator()
+    ax.xaxis.set_major_locator(locator)
+    ax.xaxis.set_major_formatter(DateFormatter("%H:%M"))
+    fig = ax.get_figure()
+    fig.autofmt_xdate()
 
 
 def _clean_pairs(times: list, values: list):
@@ -83,8 +93,7 @@ def _dual_chart(times, vals1, vals2, label1, label2, path: Path, files: list):
     ax2 = ax1.twinx()
     ax2.plot(xt2, y2, "r-", linewidth=0.8, label=label2)
     ax2.set_ylabel(label2, color="r")
-    ax1.xaxis.set_major_formatter(DateFormatter("%H:%M"))
-    fig.autofmt_xdate()
+    _fmt_xaxis(ax1, xt1)
     fig.savefig(path, dpi=150, bbox_inches="tight")
     files.append(path)
     plt.close(fig)
