@@ -55,7 +55,7 @@ def generate_map(activity: Activity, output_path: Path) -> Path:
     center_lat = pts[len(pts) // 2].track.latitude
     center_lon = pts[len(pts) // 2].track.longitude
 
-    m = folium.Map(location=[center_lat, center_lon], zoom_start=13, tiles="CartoDB Positron")
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=13, tiles="OpenStreetMap")
 
     for var_name, var_cfg in VARIABLES.items():
         fg = folium.FeatureGroup(name=var_cfg["label"], show=(var_name == "temperature"))
