@@ -12,7 +12,7 @@ def compute_thermal_metrics(ep: EnhancedPoint) -> ThermalMetrics:
     HR = w.relative_humidity_2m
     WS = w.wind_speed_10m
 
-    apparent = _apparent_temperature(T, HR, WS)
+    apparent = w.apparent_temperature if w.apparent_temperature is not None else _apparent_temperature(T, HR, WS)
     hi = _heat_index(T, HR)
     wc = _wind_chill(T, WS)
     hx = _humidex(T, HR)
@@ -27,8 +27,11 @@ def compute_thermal_metrics(ep: EnhancedPoint) -> ThermalMetrics:
     )
 
 
+_vp = lambda T, HR: (HR / 100.0) * 6.105 * np.exp(17.27 * T / (237.7 + T))
+
+
 def _apparent_temperature(T: float, HR: float, WS: float) -> float:
-    e = HR / 100 * 6.105 * np.exp(17.27 * T / (237.7 + T))
+    e = _vp(T, HR)
     Ta = T + 0.33 * e - 0.70 * WS - 4.00
     return round(Ta, 1)
 
@@ -58,13 +61,14 @@ def _wind_chill(T: float, WS: float) -> float | None:
 
 
 def _humidex(T: float, HR: float) -> float:
-    e = HR / 100 * 6.105 * np.exp(17.27 * T / (237.7 + T))
+    e = _vp(T, HR)
     hx = T + 0.5555 * (e - 10)
     return round(hx, 1)
 
 
 def _wbgt_simple(T: float, HR: float) -> float:
-    wbgt = 0.567 * T + 0.393 * HR + 3.94
+    e = _vp(T, HR)
+    wbgt = 0.567 * T + 0.393 * e + 3.94
     return round(wbgt, 1)
 
 
