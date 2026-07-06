@@ -1,9 +1,11 @@
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import folium
 from folium.plugins import MousePosition
 import numpy as np
 
+from config import LOCAL_TIMEZONE
 from models import Activity
 
 
@@ -47,6 +49,7 @@ def _downsample(points: list, max_points: int = 2000) -> list:
 
 
 def generate_map(activity: Activity, output_path: Path) -> Path:
+    local_tz = ZoneInfo(LOCAL_TIMEZONE)
     pts = _downsample(activity.points, max_points=2000)
 
     center_lat = pts[len(pts) // 2].track.latitude
@@ -65,7 +68,7 @@ def generate_map(activity: Activity, output_path: Path) -> Path:
             coords.append([ep.track.latitude, ep.track.longitude])
             val = var_cfg["getter"](ep)
             colors.append(_color_temp(val))
-            tooltips.append(_tooltip(ep, val, var_cfg["label"]))
+            tooltips.append(_tooltip(ep, val, var_cfg["label"], local_tz))
 
         for i in range(len(coords) - 1):
             folium.PolyLine(
@@ -85,10 +88,11 @@ def generate_map(activity: Activity, output_path: Path) -> Path:
     return output_path
 
 
-def _tooltip(ep, val: float | None, label: str) -> str:
+def _tooltip(ep, val: float | None, label: str, tz) -> str:
     parts = [f"{label}: {val:.1f}" if val is not None else f"{label}: N/A"]
     if ep.track.time:
-        parts.append(f"Heure: {ep.track.time.strftime('%H:%M:%S')}")
+        local_time = ep.track.time.astimezone(tz)
+        parts.append(f"Heure: {local_time.strftime('%H:%M:%S')}")
     if ep.track.heart_rate is not None:
         parts.append(f"FC: {ep.track.heart_rate:.0f} bpm")
     if ep.pace_min_km is not None:

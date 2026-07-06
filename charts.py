@@ -1,18 +1,21 @@
 from pathlib import Path
+from zoneinfo import ZoneInfo
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.dates import DateFormatter
 
+from config import LOCAL_TIMEZONE
 from models import Activity
 
 
 def generate_charts(activity: Activity, output_dir: Path) -> list[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     files = []
+    local_tz = ZoneInfo(LOCAL_TIMEZONE)
 
     points = activity.points
-    times = [ep.track.time for ep in points]
+    times = [_to_local(ep.track.time, local_tz) for ep in points]
     temps = [ep.weather.temperature_2m if ep.weather else None for ep in points]
     apparents = [ep.thermal.apparent_temperature if ep.thermal else None for ep in points]
     hums = [ep.weather.relative_humidity_2m if ep.weather else None for ep in points]
@@ -51,11 +54,17 @@ def generate_charts(activity: Activity, output_dir: Path) -> list[Path]:
     return files
 
 
+def _to_local(dt, tz):
+    if dt is None:
+        return None
+    return dt.astimezone(tz)
+
+
 def _clean_pairs(times: list, values: list):
     xt = []
     yv = []
     for t, v in zip(times, values):
-        if v is not None:
+        if v is not None and t is not None:
             xt.append(t)
             yv.append(v)
     return xt, yv

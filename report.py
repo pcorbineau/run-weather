@@ -1,10 +1,12 @@
 import base64
 from pathlib import Path
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import jinja2
 import pandas as pd
 
+from config import LOCAL_TIMEZONE
 from models import Activity
 
 
@@ -84,13 +86,15 @@ Généré par run-weather le {{ generation_time }}
 
 
 def generate_csv(activity: Activity, path: Path) -> Path:
+    local_tz = ZoneInfo(LOCAL_TIMEZONE)
     rows = []
     for ep in activity.points:
         t = ep.track
         w = ep.weather
         th = ep.thermal
+        local_time = t.time.astimezone(local_tz) if t.time else None
         rows.append({
-            "heure": t.time.isoformat() if t.time else "",
+            "heure": local_time.isoformat() if local_time else "",
             "latitude": t.latitude,
             "longitude": t.longitude,
             "altitude": t.elevation or "",
@@ -130,9 +134,12 @@ def generate_html_report(activity: Activity, charts: list[Path], map_path: Path,
     minutes, _ = divmod(remainder, 60)
     duration_str = f"{hours}h{minutes:02d}" if hours > 0 else f"{minutes} min"
 
+    local_tz = ZoneInfo(LOCAL_TIMEZONE)
+    local_start = activity.start_time.astimezone(local_tz) if activity.start_time else None
+
     html = template.render(
         name=activity.name,
-        date=activity.start_time.strftime("%d/%m/%Y %H:%M") if activity.start_time else "",
+        date=local_start.strftime("%d/%m/%Y %H:%M") if local_start else "",
         sport_type=activity.sport_type,
         distance_km=activity.distance_km,
         duration_str=duration_str,
